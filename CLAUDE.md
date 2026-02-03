@@ -1,29 +1,34 @@
-# CLAUDE.md - AI Assistant Guide for live-translate
+# CLAUDE.md - AI Assistant Guide for Live Translate
 
-This document provides guidance for AI assistants (like Claude) working with the live-translate codebase.
+iOS 실시간 비디오 번역 앱 개발 가이드
 
 ## Project Overview
 
 **Repository:** live-translate
-**Status:** New project (initial setup)
-**Purpose:** Live translation application (real-time language translation service)
+**Platform:** iOS 18+
+**Language:** Swift 6.0
+**Status:** Core implementation complete
 
-> **Note:** This is a newly initialized repository. This document will be updated as the codebase develops.
+앱 내에서 재생되는 비디오의 음성을 실시간으로 인식하고 번역하여 자막으로 표시하는 iOS 앱입니다.
+
+### 핵심 제약사항
+
+- ❌ 서드파티 라이브러리 사용 금지
+- ❌ 외부 API/서버 사용 금지
+- ❌ Python 사용 금지
+- ❌ 시스템 전체 오디오 캡처 금지 (인앱 비디오만)
 
 ---
 
 ## Quick Start
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd live-translate
+# Xcode 16+에서 프로젝트 열기
+open LiveTranslate.xcodeproj
 
-# Install dependencies (once package.json is created)
-npm install
-
-# Start development server (once configured)
-npm run dev
+# 또는 Swift Package로 빌드
+cd LiveTranslate
+swift build
 ```
 
 ---
@@ -32,18 +37,131 @@ npm run dev
 
 ```
 live-translate/
-├── CLAUDE.md           # This file - AI assistant guidance
-├── README.md           # Project documentation (to be created)
-├── package.json        # Dependencies and scripts (to be created)
-├── src/                # Source code (to be created)
-│   ├── index.ts        # Application entry point
-│   ├── components/     # UI components
-│   ├── services/       # Business logic and API services
-│   ├── utils/          # Utility functions
-│   └── types/          # TypeScript type definitions
-├── tests/              # Test files
-├── config/             # Configuration files
-└── docs/               # Additional documentation
+├── CLAUDE.md                    # AI 어시스턴트 가이드 (이 파일)
+├── README.md                    # 상세 기술 문서
+├── Resources/
+│   └── Info.plist
+├── Sources/
+│   ├── App/
+│   │   ├── LiveTranslateApp.swift    # 앱 진입점
+│   │   └── ContentView.swift         # 메인 UI
+│   ├── Core/
+│   │   ├── Models/
+│   │   │   ├── SubtitleSegment.swift # 자막 세그먼트 모델
+│   │   │   └── AppConfiguration.swift # 앱 설정
+│   │   └── Services/
+│   │       └── TranslationCoordinator.swift # 메인 코디네이터
+│   └── Modules/
+│       ├── AudioExtraction/
+│       │   └── AudioExtractionModule.swift   # MTAudioProcessingTap
+│       ├── SpeechRecognition/
+│       │   └── SpeechRecognitionModule.swift # 스트리밍 STT
+│       ├── Translation/
+│       │   └── TranslationModule.swift       # Translation 프레임워크
+│       ├── VideoPlayer/
+│       │   └── VideoPlayerModule.swift       # AVPlayer 관리
+│       ├── Subtitle/
+│       │   ├── SubtitleCompositor.swift      # 비디오 합성
+│       │   └── SubtitleOverlayView.swift     # SwiftUI 오버레이
+│       ├── PictureInPicture/
+│       │   └── PictureInPictureModule.swift  # PiP 관리
+│       ├── TTS/
+│       │   └── TextToSpeechModule.swift      # 음성 합성
+│       └── Settings/
+│           └── SettingsView.swift            # 설정 화면
+```
+
+---
+
+## Apple Frameworks Used
+
+| 프레임워크 | 용도 |
+|------------|------|
+| `AVFoundation` / `AVKit` | 비디오 재생, 오디오 추출, PiP |
+| `Speech` | 실시간 음성 인식 (STT) |
+| `Translation` | 온디바이스 텍스트 번역 (iOS 18+) |
+| `AVFAudio` | TTS (선택적) |
+| `SwiftUI` | UI |
+
+---
+
+## Architecture
+
+### 데이터 흐름 파이프라인
+
+```
+AVPlayer (비디오)
+    ↓
+MTAudioProcessingTap (오디오 추출)
+    ↓
+PCM Audio Buffer (Mono, 16kHz)
+    ↓
+SFSpeechAudioBufferRecognitionRequest (스트리밍 STT)
+    ↓
+인식된 텍스트 (부분 + 최종)
+    ↓
+TranslationSession (문장 단위 번역)
+    ↓
+SubtitleTimeline (자막 타임라인)
+    ↓
+화면 자막 + PiP 자막
+```
+
+### 핵심 모듈
+
+1. **TranslationCoordinator**: 모든 모듈을 조율하는 메인 코디네이터
+2. **AudioExtractionModule**: MTAudioProcessingTap으로 비디오 오디오 추출
+3. **SpeechRecognitionModule**: 스트리밍 음성 인식
+4. **TranslationModule**: iOS 18 Translation 프레임워크 래퍼
+5. **SubtitleTimeline**: 자막 세그먼트 관리
+6. **SubtitleCompositor**: 비디오 프레임에 자막 합성 (PiP용)
+7. **PictureInPictureModule**: PiP 관리
+
+---
+
+## Key Implementation Details
+
+### MTAudioProcessingTap (오디오 추출)
+
+```swift
+// AudioExtractionModule.swift:50-80
+var callbacks = MTAudioProcessingTapCallbacks(
+    version: kMTAudioProcessingTapCallbacksVersion_0,
+    clientInfo: context,
+    init: tapInit,
+    finalize: tapFinalize,
+    prepare: tapPrepare,
+    unprepare: tapUnprepare,
+    process: tapProcess  // 여기서 오디오 버퍼 추출
+)
+
+MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks,
+                           kMTAudioProcessingTapCreationFlag_PostEffects, &tap)
+```
+
+### 스트리밍 STT
+
+```swift
+// SpeechRecognitionModule.swift:85-100
+let request = SFSpeechAudioBufferRecognitionRequest()
+request.shouldReportPartialResults = true  // 부분 결과 활성화
+request.addsPunctuation = true
+
+recognitionTask = recognizer.recognitionTask(with: request) { result, error in
+    // 실시간 결과 처리
+}
+```
+
+### Translation 프레임워크
+
+```swift
+// TranslationModule.swift:70-85
+let configuration = TranslationSession.Configuration(
+    source: sourceLanguage,  // nil = 자동 감지
+    target: targetLanguage
+)
+translationSession = try await TranslationSession(configuration: configuration)
+let response = try await session.translate(text)
 ```
 
 ---
@@ -52,171 +170,94 @@ live-translate/
 
 ### Code Style
 
-- Use TypeScript for type safety
-- Follow consistent naming conventions:
-  - `camelCase` for variables and functions
-  - `PascalCase` for classes and components
-  - `UPPER_SNAKE_CASE` for constants
-- Keep functions small and focused (single responsibility)
-- Write self-documenting code; add comments only for complex logic
+- Swift 6.0 concurrency (async/await, @MainActor)
+- 모든 UI 코드는 `@MainActor`
+- `nonisolated` 함수에서 MainActor 코드 호출 시 `Task { @MainActor in ... }`
+- 명명 규칙:
+  - `camelCase`: 변수, 함수
+  - `PascalCase`: 타입, 프로토콜
+  - `UPPER_SNAKE_CASE`: 상수
 
-### Git Workflow
+### Threading Model
 
-- Create feature branches from main: `feature/<description>`
-- Use descriptive commit messages in imperative mood
-- Keep commits atomic and focused
-- Run tests before committing
+```
+Main Thread (@MainActor)
+├── SwiftUI Views
+├── TranslationCoordinator
+├── ObservableObject 프로퍼티 업데이트
 
-### Testing
-
-- Write tests alongside new features
-- Maintain test coverage for critical paths
-- Use descriptive test names that explain the expected behavior
-
----
-
-## Common Tasks
-
-### Adding a New Feature
-
-1. Create a feature branch
-2. Implement the feature with tests
-3. Update documentation if needed
-4. Submit for review
-
-### Fixing a Bug
-
-1. Reproduce the issue
-2. Write a failing test that exposes the bug
-3. Fix the bug
-4. Verify the test passes
-
-### Running Tests
-
-```bash
-# Run all tests (once configured)
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run with coverage
-npm run test:coverage
+Background Threads
+├── MTAudioProcessingTap 콜백 (렌더 스레드)
+├── AVAudioConverter
+└── CIContext 렌더링
 ```
 
----
+### Performance Targets
 
-## Architecture Notes
-
-### Key Technologies (Planned)
-
-- **Language:** TypeScript
-- **Runtime:** Node.js
-- **Translation APIs:** To be determined (Google Translate, DeepL, etc.)
-- **Real-time Communication:** WebSockets or Server-Sent Events
-
-### Design Principles
-
-1. **Modularity:** Keep components loosely coupled
-2. **Extensibility:** Design for easy addition of new translation providers
-3. **Performance:** Optimize for low-latency real-time translation
-4. **Error Handling:** Graceful degradation when services are unavailable
-
----
-
-## Important Files
-
-| File | Purpose |
-|------|---------|
-| `CLAUDE.md` | AI assistant guidance (this file) |
-| `package.json` | Dependencies and npm scripts |
-| `tsconfig.json` | TypeScript configuration |
-| `.env` | Environment variables (not committed) |
-| `.env.example` | Template for environment variables |
-
----
-
-## Environment Variables
-
-Create a `.env` file based on `.env.example`:
-
-```bash
-# API Keys (do not commit actual values)
-TRANSLATION_API_KEY=your_api_key_here
-
-# Server Configuration
-PORT=3000
-NODE_ENV=development
-
-# Logging
-LOG_LEVEL=debug
-```
+| 단계 | 목표 지연시간 |
+|------|--------------|
+| STT | ~0.3–1.0초 |
+| 번역 | ~0.2–1.0초 |
+| **전체** | **1–3초** |
 
 ---
 
 ## AI Assistant Guidelines
 
-When working with this codebase, AI assistants should:
-
 ### Do
 
-- Read existing code before making modifications
-- Follow established patterns and conventions in the codebase
-- Write tests for new functionality
-- Keep changes focused and minimal
-- Use TypeScript types properly
-- Handle errors appropriately
-- Update this CLAUDE.md when significant architectural changes are made
+- 코드 수정 전 기존 코드 먼저 읽기
+- Apple 프레임워크만 사용
+- Swift concurrency 패턴 준수 (@MainActor, async/await)
+- 에러 처리 적절히 구현
+- 스레드 안전성 고려
 
 ### Don't
 
-- Make changes without understanding the context
-- Over-engineer solutions
-- Add unnecessary dependencies
-- Skip error handling
-- Commit sensitive data (API keys, credentials)
-- Make breaking changes without clear communication
+- 서드파티 라이브러리 추가 ❌
+- 외부 API 호출 ❌
+- 시스템 오디오 캡처 시도 ❌
+- ReplayKit 사용 ❌
+- 과도한 엔지니어링 ❌
 
-### Code Review Checklist
+### Critical Files
 
-Before completing a task, verify:
-
-- [ ] Code follows project conventions
-- [ ] Tests pass
-- [ ] No security vulnerabilities introduced
-- [ ] No sensitive data exposed
-- [ ] Changes are minimal and focused
-- [ ] Documentation updated if needed
+| 파일 | 중요도 | 설명 |
+|------|--------|------|
+| `TranslationCoordinator.swift` | ⭐⭐⭐ | 핵심 조율 로직 |
+| `AudioExtractionModule.swift` | ⭐⭐⭐ | MTAudioProcessingTap 구현 |
+| `SpeechRecognitionModule.swift` | ⭐⭐⭐ | 스트리밍 STT |
+| `TranslationModule.swift` | ⭐⭐ | Translation 프레임워크 래퍼 |
+| `SubtitleCompositor.swift` | ⭐⭐ | PiP 자막 합성 |
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| Dependencies not installing | Delete `node_modules` and `package-lock.json`, then run `npm install` |
-| TypeScript errors | Check `tsconfig.json` and ensure types are installed |
-| Tests failing | Check for environment variables and mock configurations |
-
----
-
-## Resources
-
-- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
-- [Node.js Documentation](https://nodejs.org/docs/)
-- [Project Issue Tracker](https://github.com/danchew90/live-translate/issues)
+| 문제 | 해결 |
+|------|------|
+| PiP에서 자막 안 보임 | SubtitleCompositor로 비디오에 자막 합성 필요 |
+| STT 권한 오류 | Info.plist에 NSSpeechRecognitionUsageDescription 확인 |
+| Translation 실패 | iOS 18+ 확인, 언어 모델 다운로드 상태 확인 |
+| 오디오 추출 안됨 | playerItem.audioMix 설정 확인 |
 
 ---
 
 ## Changelog
 
+### 2026-02-03 - Core Implementation
+- 전체 모듈 구조 구현
+- MTAudioProcessingTap 오디오 추출
+- 스트리밍 음성 인식
+- Translation 프레임워크 통합
+- SwiftUI 메인 UI
+- PiP 지원
+- TTS 지원
+
 ### Initial Setup (2026-02-03)
-- Created CLAUDE.md with foundational project guidelines
-- Established code style and development workflow conventions
-- Defined project structure template
+- 프로젝트 초기화
+- CLAUDE.md 생성
 
 ---
 
-*This document is maintained for AI assistants working with this codebase. Update it when making significant changes to the project structure, conventions, or workflows.*
+*이 문서는 live-translate 코드베이스 작업 시 AI 어시스턴트를 위한 가이드입니다.*
