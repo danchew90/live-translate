@@ -38,42 +38,37 @@ swift build
 ```
 live-translate/
 ├── CLAUDE.md                    # AI 어시스턴트 가이드 (이 파일)
-├── LiveTranslate/
-│   ├── Sources/
-│   │   ├── App/
-│   │   │   ├── LiveTranslateApp.swift    # 앱 진입점
-│   │   │   └── ContentView.swift         # 메인 UI
-│   │   │
-│   │   ├── Core/
-│   │   │   ├── Models/
-│   │   │   │   ├── SubtitleSegment.swift # 자막 세그먼트 모델
-│   │   │   │   └── AppConfiguration.swift # 앱 설정
-│   │   │   └── Services/
-│   │   │       └── TranslationCoordinator.swift # 메인 코디네이터
-│   │   │
-│   │   ├── Modules/
-│   │   │   ├── AudioExtraction/
-│   │   │   │   └── AudioExtractionModule.swift   # MTAudioProcessingTap
-│   │   │   ├── SpeechRecognition/
-│   │   │   │   └── SpeechRecognitionModule.swift # 스트리밍 STT
-│   │   │   ├── Translation/
-│   │   │   │   └── TranslationModule.swift       # Translation 프레임워크
-│   │   │   ├── VideoPlayer/
-│   │   │   │   └── VideoPlayerModule.swift       # AVPlayer 관리
-│   │   │   ├── Subtitle/
-│   │   │   │   ├── SubtitleCompositor.swift      # 비디오 합성
-│   │   │   │   └── SubtitleOverlayView.swift     # SwiftUI 오버레이
-│   │   │   ├── PictureInPicture/
-│   │   │   │   └── PictureInPictureModule.swift  # PiP 관리
-│   │   │   ├── TTS/
-│   │   │   │   └── TextToSpeechModule.swift      # 음성 합성
-│   │   │   └── Settings/
-│   │   │       └── SettingsView.swift            # 설정 화면
-│   │   │
-│   │   └── Resources/
-│   │       └── Info.plist
-│   │
-│   └── README.md                # 상세 기술 문서
+├── README.md                    # 상세 기술 문서
+├── Resources/
+│   └── Info.plist
+├── Sources/
+│   ├── App/
+│   │   ├── LiveTranslateApp.swift    # 앱 진입점
+│   │   └── ContentView.swift         # 메인 UI
+│   ├── Core/
+│   │   ├── Models/
+│   │   │   ├── SubtitleSegment.swift # 자막 세그먼트 모델
+│   │   │   └── AppConfiguration.swift # 앱 설정
+│   │   └── Services/
+│   │       └── TranslationCoordinator.swift # 메인 코디네이터
+│   └── Modules/
+│       ├── AudioExtraction/
+│       │   └── AudioExtractionModule.swift   # MTAudioProcessingTap
+│       ├── SpeechRecognition/
+│       │   └── SpeechRecognitionModule.swift # 스트리밍 STT
+│       ├── Translation/
+│       │   └── TranslationModule.swift       # Translation 프레임워크
+│       ├── VideoPlayer/
+│       │   └── VideoPlayerModule.swift       # AVPlayer 관리
+│       ├── Subtitle/
+│       │   ├── SubtitleCompositor.swift      # 비디오 합성
+│       │   └── SubtitleOverlayView.swift     # SwiftUI 오버레이
+│       ├── PictureInPicture/
+│       │   └── PictureInPictureModule.swift  # PiP 관리
+│       ├── TTS/
+│       │   └── TextToSpeechModule.swift      # 음성 합성
+│       └── Settings/
+│           └── SettingsView.swift            # 설정 화면
 ```
 
 ---
